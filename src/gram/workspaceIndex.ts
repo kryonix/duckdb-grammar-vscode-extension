@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import {
   buildKeywordRuleSource,
   getKeywordRuleNameFromPath,
+  isKeywordBackedRuleName,
   parseKeywordListEntries,
 } from "./keywords";
 import { findTokenAtOffset, parseGram } from "./parser";
@@ -42,6 +43,9 @@ const isIgnoredUri = (uri: vscode.Uri): boolean =>
 const isInlineGrammarUri = (uri: vscode.Uri): boolean =>
   uri.path.endsWith("/inlined_grammar.gram") || uri.path.endsWith("inlined_grammar.gram");
 
+const isInlineGrammarDocumentUri = (uri: vscode.Uri): boolean =>
+  isInlineGrammarUri(uri) && !isIgnoredUri(uri);
+
 const isGrammarDocumentUri = (uri: vscode.Uri): boolean =>
   uri.path.endsWith(".gram") && !isIgnoredUri(uri);
 
@@ -72,6 +76,9 @@ const pushLocation = (
   }
   map.set(key, [location]);
 };
+
+const createRuleMatchKey = (match: IndexedRuleMatch): string =>
+  `${match.document.uri.toString()}::${match.nameStart}::${match.nameEnd}`;
 
 export class WorkspaceIndex {
   private readonly gramCache = new Map<string, CachedGramDocument>();
@@ -237,12 +244,19 @@ export class WorkspaceIndex {
     ruleName: string,
     extraDocuments: readonly vscode.TextDocument[],
   ): Promise<IndexedRuleMatch[]> {
-    const grammarMatches = await this.getGrammarRuleMatches(ruleName, extraDocuments);
-    if (grammarMatches.length > 0) {
-      return grammarMatches;
+    const matches = await this.getGrammarRuleMatches(ruleName, extraDocuments);
+
+    if (isKeywordBackedRuleName(ruleName)) {
+      matches.push(...(await this.getInlineGrammarRuleMatches(ruleName, extraDocuments)));
+      matches.push(...(await this.getKeywordRuleMatches(ruleName)));
     }
 
-    return this.getKeywordRuleMatches(ruleName);
+    const uniqueMatches = new Map<string, IndexedRuleMatch>();
+    for (const match of matches) {
+      uniqueMatches.set(createRuleMatchKey(match), match);
+    }
+
+    return [...uniqueMatches.values()];
   }
 
   private async getGrammarRuleMatches(
@@ -301,6 +315,35 @@ export class WorkspaceIndex {
     return matches;
   }
 
+  private async getInlineGrammarRuleMatches(
+    ruleName: string,
+    extraDocuments: readonly vscode.TextDocument[],
+  ): Promise<IndexedRuleMatch[]> {
+    const documents = await this.loadInlineGrammarDocuments(extraDocuments);
+    const matches: IndexedRuleMatch[] = [];
+
+    for (const document of documents) {
+      const text = document.getText();
+      const parsed = this.getParsedGramDocument(document);
+
+      for (const rule of parsed.rules) {
+        if (rule.name !== ruleName) {
+          continue;
+        }
+
+        matches.push({
+          document,
+          name: rule.name,
+          nameStart: rule.nameStart,
+          nameEnd: rule.nameEnd,
+          source: getRuleSource(text, rule),
+        });
+      }
+    }
+
+    return matches;
+  }
+
   private async loadGrammarDocuments(
     extraDocuments: readonly vscode.TextDocument[],
   ): Promise<vscode.TextDocument[]> {
@@ -313,6 +356,29 @@ export class WorkspaceIndex {
     }
 
     const workspaceDocuments = await this.loadDocuments("**/*.gram", isGrammarWorkspaceUri, []);
+    for (const document of workspaceDocuments) {
+      documentMap.set(document.uri.toString(), document);
+    }
+
+    return [...documentMap.values()];
+  }
+
+  private async loadInlineGrammarDocuments(
+    extraDocuments: readonly vscode.TextDocument[],
+  ): Promise<vscode.TextDocument[]> {
+    const documentMap = new Map<string, vscode.TextDocument>();
+
+    for (const document of extraDocuments) {
+      if (isInlineGrammarDocumentUri(document.uri)) {
+        documentMap.set(document.uri.toString(), document);
+      }
+    }
+
+    const workspaceDocuments = await this.loadDocuments(
+      "**/inlined_grammar.gram",
+      isInlineGrammarDocumentUri,
+      [],
+    );
     for (const document of workspaceDocuments) {
       documentMap.set(document.uri.toString(), document);
     }

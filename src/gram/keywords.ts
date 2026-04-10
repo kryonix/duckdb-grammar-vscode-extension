@@ -5,6 +5,7 @@ const KEYWORD_RULE_FILE_NAMES = new Map<string, string>([
   ["func_name_keyword.list", "FuncNameKeyword"],
   ["type_name_keyword.list", "TypeNameKeyword"],
 ]);
+const KEYWORD_RULE_NAMES = new Set(KEYWORD_RULE_FILE_NAMES.values());
 
 const escapeLiteral = (value: string): string =>
   value.replaceAll("\\", "\\\\").replaceAll("'", "\\'");
@@ -16,6 +17,10 @@ export function getKeywordRuleNameFromFileName(fileName: string): string | undef
 export function getKeywordRuleNameFromPath(path: string): string | undefined {
   const fileName = path.split("/").at(-1) ?? path;
   return getKeywordRuleNameFromFileName(fileName);
+}
+
+export function isKeywordBackedRuleName(ruleName: string): boolean {
+  return KEYWORD_RULE_NAMES.has(ruleName);
 }
 
 export function parseKeywordListEntries(text: string): string[] {

@@ -4,6 +4,7 @@ import {
   buildKeywordRuleSource,
   getKeywordRuleNameFromFileName,
   getKeywordRuleNameFromPath,
+  isKeywordBackedRuleName,
   parseKeywordListEntries,
 } from "../gram/keywords";
 
@@ -14,6 +15,12 @@ test("maps keyword list files to synthetic rule names", () => {
     "TypeNameKeyword",
   );
   assert.equal(getKeywordRuleNameFromFileName("unknown.list"), undefined);
+});
+
+test("recognizes keyword-backed pseudo-rule names", () => {
+  assert.equal(isKeywordBackedRuleName("UnreservedKeyword"), true);
+  assert.equal(isKeywordBackedRuleName("ColumnNameKeyword"), true);
+  assert.equal(isKeywordBackedRuleName("Identifier"), false);
 });
 
 test("parses keyword list entries and skips blanks/comments", () => {
