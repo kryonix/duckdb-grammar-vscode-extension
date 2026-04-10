@@ -24,8 +24,26 @@ export function activate(context: vscode.ExtensionContext): void {
   const transformerSelector: vscode.DocumentSelector = [
     { language: "cpp", pattern: "**/transform_*.cpp" },
   ];
+  const transformerCodeLensProvider = new TransformerCodeLensProvider(workspaceIndex);
+  const grammarWatcher = vscode.workspace.createFileSystemWatcher("**/*.gram");
+  const refreshTransformerCodeLenses = (uri: vscode.Uri): void => {
+    if (workspaceIndex.invalidateGrammarWorkspaceCache(uri)) {
+      transformerCodeLensProvider.refresh();
+    }
+  };
 
   context.subscriptions.push(
+    transformerCodeLensProvider,
+    grammarWatcher,
+    grammarWatcher.onDidCreate(refreshTransformerCodeLenses),
+    grammarWatcher.onDidChange(refreshTransformerCodeLenses),
+    grammarWatcher.onDidDelete(refreshTransformerCodeLenses),
+    vscode.workspace.onDidRenameFiles((event) => {
+      for (const file of event.files) {
+        refreshTransformerCodeLenses(file.oldUri);
+        refreshTransformerCodeLenses(file.newUri);
+      }
+    }),
     vscode.languages.registerDocumentSemanticTokensProvider(
       grammarSelector,
       new GramSemanticTokensProvider(workspaceIndex),
@@ -73,7 +91,7 @@ export function activate(context: vscode.ExtensionContext): void {
     ),
     vscode.languages.registerCodeLensProvider(
       transformerSelector,
-      new TransformerCodeLensProvider(workspaceIndex),
+      transformerCodeLensProvider,
     ),
   );
 }

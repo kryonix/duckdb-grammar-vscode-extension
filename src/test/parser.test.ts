@@ -1,5 +1,6 @@
 import * as assert from "node:assert/strict";
 import { test } from "node:test";
+import { formatExpressionHintLabel } from "../gram/expression";
 import { lexGram } from "../gram/lexer";
 import { parseGram } from "../gram/parser";
 import { formatRulePreview, getRuleSource } from "../gram/preview";
@@ -129,6 +130,14 @@ test("formats long hover previews with truncation", () => {
   );
 
   assert.equal(preview, "rule <-\n    a\n    /...");
+});
+
+test("formats compact transformer child hint labels", () => {
+  assert.equal(formatExpressionHintLabel("SelectStatementInternal"), "SelectStatementInternal");
+  assert.equal(
+    formatExpressionHintLabel("DistinctOrAll? List(FunctionArgument)?", 24),
+    "DistinctOrAll? List(Fun…",
+  );
 });
 
 test("extracts transformer methods from C++ files", () => {

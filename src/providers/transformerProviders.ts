@@ -1,16 +1,30 @@
 import * as vscode from "vscode";
-import { WorkspaceIndex } from "../gram/workspaceIndex";
+import { formatExpressionHintLabel } from "../gram/expression";
+import { IndexedRuleChildMatch, WorkspaceIndex } from "../gram/workspaceIndex";
 import {
   createRuleChildHover,
   createRuleChildOutOfRangeHover,
   createRulePreviewHover,
 } from "./hoverUtils";
 
+const CHILD_HINT_MAX_LENGTH = 28;
+
 const rangeFromOffsets = (
   document: vscode.TextDocument,
   start: number,
   end: number,
 ): vscode.Range => new vscode.Range(document.positionAt(start), document.positionAt(end));
+
+const createChildLocations = (
+  matches: readonly IndexedRuleChildMatch[],
+): vscode.Location[] =>
+  matches.map(
+    (match) =>
+      new vscode.Location(
+        match.document.uri,
+        rangeFromOffsets(match.document, match.childStart, match.childEnd),
+      ),
+  );
 
 const createPeekOrOpenCommand = (
   sourceUri: vscode.Uri,
@@ -57,20 +71,66 @@ export class TransformerDefinitionProvider implements vscode.DefinitionProvider 
 }
 
 export class TransformerCodeLensProvider implements vscode.CodeLensProvider {
+  private readonly onDidChangeCodeLensesEmitter = new vscode.EventEmitter<void>();
+
   public constructor(private readonly workspaceIndex: WorkspaceIndex) {}
+
+  public readonly onDidChangeCodeLenses: vscode.Event<void> =
+    this.onDidChangeCodeLensesEmitter.event;
+
+  public refresh(): void {
+    this.onDidChangeCodeLensesEmitter.fire();
+  }
+
+  public dispose(): void {
+    this.onDidChangeCodeLensesEmitter.dispose();
+  }
 
   public async provideCodeLenses(
     document: vscode.TextDocument,
     _token: vscode.CancellationToken,
   ): Promise<vscode.CodeLens[]> {
     const methods = this.workspaceIndex.getTransformerMethods(document);
-    const grammarMap = await this.workspaceIndex.getGrammarDefinitionMap();
+    const [grammarMap, childMaps] = await Promise.all([
+      this.workspaceIndex.getGrammarDefinitionMap(),
+      this.workspaceIndex.getRuleChildMatchMaps(
+        methods.map((method) => method.ruleName),
+        [document],
+      ),
+    ]);
     const lenses: vscode.CodeLens[] = [];
 
     for (const method of methods) {
       const targets = grammarMap.get(method.ruleName);
       if (!targets || targets.length === 0) {
         continue;
+      }
+
+      const childMap = childMaps.get(method.ruleName);
+      if (childMap && childMap.size > 0) {
+        for (const [childIndex, matches] of [...childMap.entries()].sort(
+          ([left], [right]) => left - right,
+        )) {
+          const childMatch = matches[0];
+          lenses.push(
+            new vscode.CodeLens(
+              rangeFromOffsets(document, method.nameStart, method.nameEnd),
+              createPeekOrOpenCommand(
+                document.uri,
+                document.positionAt(method.nameStart),
+                createChildLocations(matches),
+                `[${childIndex}] ${formatExpressionHintLabel(
+                  childMatch.childSource,
+                  CHILD_HINT_MAX_LENGTH,
+                )}`,
+                `[${childIndex}] ${formatExpressionHintLabel(
+                  childMatch.childSource,
+                  CHILD_HINT_MAX_LENGTH,
+                )}`,
+              ),
+            ),
+          );
+        }
       }
 
       lenses.push(

@@ -9,7 +9,7 @@ A VS Code extension for [DuckDB](https://duckdb.org/)'s PEG grammar files (`.gra
 - **Find References** for grammar rules across the workspace
 - **Hover previews** on grammar rule references and `Transform<Rule>` methods to show the matching grammar rule body
 - **Child index inlay hints** in `.gram` files so each direct parse-result child is labeled with its `node.children[i]` index
-- **Transformer child hovers** on `node.children[i]`, `list_pr.Child<T>(i)`, and `list_pr.GetChild(i)` when they refer to the method's top-level `parse_result->Cast<ListParseResult>()`
+- **Transformer child cheat sheets and hovers** that show clickable CodeLens child entries above each `Transform<Rule>` method while still resolving `node.children[i]`, `list_pr.Child<T>(i)`, and `list_pr.GetChild(i)` on hover
 - **Keyword-backed rule resolution** for pseudo-rules like `UnreservedKeyword`, with both `grammar/keywords/*.list` and `inlined_grammar.gram` exposed when available
 - **Grammar → Transformer navigation** with CodeLens on grammar rules that have matching `PEGTransformerFactory::Transform<Rule>` methods in `transform_*.cpp`
 - **Transformer → Grammar navigation** with CodeLens and `Go to Definition` on matching `Transform<Rule>` methods
@@ -36,7 +36,7 @@ To run the extension in a VS Code Extension Development Host:
 - Open a `.gram` file to activate the language support.
 - Hover a grammar rule reference or matching `Transform<Rule>` method to preview the corresponding grammar rule.
 - Use the inlay hints in `.gram` files to see the direct child index DuckDB assigns to each top-level rule element.
-- Hover `node.children[i]`, `list_pr.Child<T>(i)`, or `list_pr.GetChild(i)` inside a transformer method to see which grammar element that child index maps to.
+- Use the CodeLens child entries above each transformer method as a child-index quick reference, and click any entry to jump to that exact child in the grammar.
 - Use `F12` or `Cmd+Click` on a rule reference to jump to its definition.
 - Use `Shift+F12` on a rule definition or reference to find usages.
 - Use the **Outline** view to browse rule definitions in the current file.

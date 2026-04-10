@@ -36,6 +36,10 @@ const isTrivia = (token: GramToken): boolean =>
 const normalizeSnippet = (snippet: string): string =>
   snippet.replace(/\s+/gu, " ").trim();
 
+export function getExpressionSource(text: string, expression: GramExpression): string {
+  return normalizeSnippet(text.slice(expression.start, expression.end));
+}
+
 class RuleExpressionParser {
   private index = 0;
 
@@ -347,7 +351,18 @@ export function getExpressionDisplayText(
   expression: GramExpression,
   maxLength = 80,
 ): string {
-  const snippet = normalizeSnippet(text.slice(expression.start, expression.end));
+  const snippet = getExpressionSource(text, expression);
+  if (snippet.length <= maxLength) {
+    return snippet;
+  }
+  return `${snippet.slice(0, maxLength - 1)}…`;
+}
+
+export function formatExpressionHintLabel(
+  expressionText: string,
+  maxLength = 32,
+): string {
+  const snippet = normalizeSnippet(expressionText);
   if (snippet.length <= maxLength) {
     return snippet;
   }

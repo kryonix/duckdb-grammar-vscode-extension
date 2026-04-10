@@ -2,7 +2,7 @@
   "name": "duckdb-grammar-support",
   "displayName": "DuckDB Grammar Support",
   "description": "IDE support for DuckDB PEG grammar files (.gram) and transformer navigation in VS Code.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "Kryonix",
   "bugs": {
     "url": "https://github.com/kryonix/duckdb-grammar-vscode-extension/issues"
