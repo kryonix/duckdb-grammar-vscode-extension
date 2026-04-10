@@ -2,6 +2,7 @@ import * as assert from "node:assert/strict";
 import { test } from "node:test";
 import { lexGram } from "../gram/lexer";
 import { parseGram } from "../gram/parser";
+import { formatRulePreview, getRuleSource } from "../gram/preview";
 import { parseTransformerMethods } from "../gram/transformer";
 import { GramTokenType } from "../gram/types";
 
@@ -83,6 +84,22 @@ test("handles rule bodies that begin on the next line", () => {
   assert.equal(parsed.rules.length, 2);
   assert.deepEqual(parsed.rules[0].references.map((reference) => reference.name), ["a", "b"]);
   assert.equal(parsed.rules[1].name, "next");
+});
+
+test("captures full multiline rule text for hover previews", () => {
+  const source = "rule <-\n    first\n    / second\nnext <- item";
+  const parsed = parseGram(source);
+
+  assert.equal(getRuleSource(source, parsed.rules[0]), "rule <-\n    first\n    / second");
+});
+
+test("formats long hover previews with truncation", () => {
+  const preview = formatRulePreview(
+    "rule <-\n    a\n    / b\n    / c\n    / d",
+    { maxLines: 3, maxCharacters: 20 },
+  );
+
+  assert.equal(preview, "rule <-\n    a\n    /...");
 });
 
 test("extracts transformer methods from C++ files", () => {

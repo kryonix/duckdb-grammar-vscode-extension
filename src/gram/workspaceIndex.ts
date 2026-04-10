@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import { findTokenAtOffset, parseGram } from "./parser";
+import { getRuleSource } from "./preview";
 import { findTransformerMethodAtOffset, parseTransformerMethods } from "./transformer";
-import { GramToken, ParsedGramDocument, TransformerMethod } from "./types";
+import { GramRuleDefinition, GramToken, ParsedGramDocument, TransformerMethod } from "./types";
 
 interface CachedGramDocument {
   readonly text: string;
@@ -11,6 +12,12 @@ interface CachedGramDocument {
 interface CachedTransformerDocument {
   readonly text: string;
   readonly methods: readonly TransformerMethod[];
+}
+
+export interface IndexedGramRule {
+  readonly document: vscode.TextDocument;
+  readonly rule: GramRuleDefinition;
+  readonly source: string;
 }
 
 const IGNORED_SEGMENTS = new Set([
@@ -113,8 +120,21 @@ export class WorkspaceIndex {
     ruleName: string,
     extraDocuments: readonly vscode.TextDocument[] = [],
   ): Promise<vscode.Location[]> {
-    const definitionMap = await this.getGrammarDefinitionMap(extraDocuments);
-    return [...(definitionMap.get(ruleName) ?? [])];
+    const matches = await this.getRuleMatches(ruleName, extraDocuments);
+    return matches.map(
+      (match) =>
+        new vscode.Location(
+          match.document.uri,
+          positionRange(match.document, match.rule.nameStart, match.rule.nameEnd),
+        ),
+    );
+  }
+
+  public async getRulePreviews(
+    ruleName: string,
+    extraDocuments: readonly vscode.TextDocument[] = [],
+  ): Promise<IndexedGramRule[]> {
+    return this.getRuleMatches(ruleName, extraDocuments);
   }
 
   public async getTransformerLocations(
@@ -157,7 +177,7 @@ export class WorkspaceIndex {
   public async getGrammarDefinitionMap(
     extraDocuments: readonly vscode.TextDocument[] = [],
   ): Promise<Map<string, vscode.Location[]>> {
-    const documents = await this.loadDocuments("**/*.gram", isGrammarUri, extraDocuments);
+    const documents = await this.loadGrammarDocuments(extraDocuments);
     const definitionMap = new Map<string, vscode.Location[]>();
 
     for (const document of documents) {
@@ -192,6 +212,39 @@ export class WorkspaceIndex {
     }
 
     return definitionMap;
+  }
+
+  private async getRuleMatches(
+    ruleName: string,
+    extraDocuments: readonly vscode.TextDocument[],
+  ): Promise<IndexedGramRule[]> {
+    const documents = await this.loadGrammarDocuments(extraDocuments);
+    const matches: IndexedGramRule[] = [];
+
+    for (const document of documents) {
+      const text = document.getText();
+      const parsed = this.getParsedGramDocument(document);
+
+      for (const rule of parsed.rules) {
+        if (rule.name !== ruleName) {
+          continue;
+        }
+
+        matches.push({
+          document,
+          rule,
+          source: getRuleSource(text, rule),
+        });
+      }
+    }
+
+    return matches;
+  }
+
+  private async loadGrammarDocuments(
+    extraDocuments: readonly vscode.TextDocument[],
+  ): Promise<vscode.TextDocument[]> {
+    return this.loadDocuments("**/*.gram", isGrammarUri, extraDocuments);
   }
 
   private async loadDocuments(

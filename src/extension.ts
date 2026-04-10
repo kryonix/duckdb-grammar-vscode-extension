@@ -6,6 +6,7 @@ import {
   GramDefinitionProvider,
   GramDocumentSymbolProvider,
   GramFoldingRangeProvider,
+  GramHoverProvider,
   GramReferenceProvider,
   GramSemanticTokensProvider,
   getSemanticLegend,
@@ -13,6 +14,7 @@ import {
 import {
   TransformerCodeLensProvider,
   TransformerDefinitionProvider,
+  TransformerHoverProvider,
 } from "./providers/transformerProviders";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -36,6 +38,10 @@ export function activate(context: vscode.ExtensionContext): void {
       grammarSelector,
       new GramReferenceProvider(workspaceIndex),
     ),
+    vscode.languages.registerHoverProvider(
+      grammarSelector,
+      new GramHoverProvider(workspaceIndex),
+    ),
     vscode.languages.registerCompletionItemProvider(
       grammarSelector,
       new GramCompletionProvider(workspaceIndex),
@@ -55,6 +61,10 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.languages.registerDefinitionProvider(
       transformerSelector,
       new TransformerDefinitionProvider(workspaceIndex),
+    ),
+    vscode.languages.registerHoverProvider(
+      transformerSelector,
+      new TransformerHoverProvider(workspaceIndex),
     ),
     vscode.languages.registerCodeLensProvider(
       transformerSelector,

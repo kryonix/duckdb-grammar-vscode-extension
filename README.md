@@ -7,6 +7,7 @@ A VS Code extension for [DuckDB](https://duckdb.org/)'s PEG grammar files (`.gra
 - **Syntax highlighting** for rule names, separators (`<-`), literals, references, operators, choices, quantifiers, regex patterns, parameters, and comments
 - **Go to Definition** for grammar rule references across workspace `.gram` files
 - **Find References** for grammar rules across the workspace
+- **Hover previews** on grammar rule references and `Transform<Rule>` methods to show the matching grammar rule body
 - **Grammar → Transformer navigation** with CodeLens on grammar rules that have matching `PEGTransformerFactory::Transform<Rule>` methods in `transform_*.cpp`
 - **Transformer → Grammar navigation** with CodeLens and `Go to Definition` on matching `Transform<Rule>` methods
 - **Outline / Document Symbols** listing all grammar rules in the current file
@@ -30,6 +31,7 @@ To run the extension in a VS Code Extension Development Host:
 ## Usage
 
 - Open a `.gram` file to activate the language support.
+- Hover a grammar rule reference or matching `Transform<Rule>` method to preview the corresponding grammar rule.
 - Use `F12` or `Cmd+Click` on a rule reference to jump to its definition.
 - Use `Shift+F12` on a rule definition or reference to find usages.
 - Use the **Outline** view to browse rule definitions in the current file.

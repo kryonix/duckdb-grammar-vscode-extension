@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { stripRulePrefix } from "../gram/parser";
 import { GramTokenType } from "../gram/types";
 import { WorkspaceIndex } from "../gram/workspaceIndex";
+import { createRulePreviewHover } from "./hoverUtils";
 
 const semanticLegend = new vscode.SemanticTokensLegend(
   ["function", "variable", "operator", "string", "regexp", "parameter", "comment"],
@@ -126,6 +127,25 @@ export class GramReferenceProvider implements vscode.ReferenceProvider {
     return this.workspaceIndex.getRuleReferences(stripRulePrefix(token.text), context.includeDeclaration, [
       document,
     ]);
+  }
+}
+
+export class GramHoverProvider implements vscode.HoverProvider {
+  public constructor(private readonly workspaceIndex: WorkspaceIndex) {}
+
+  public async provideHover(
+    document: vscode.TextDocument,
+    position: vscode.Position,
+    _token: vscode.CancellationToken,
+  ): Promise<vscode.Hover | undefined> {
+    const token = this.workspaceIndex.findGrammarTokenAtOffset(document, document.offsetAt(position));
+    if (!token || token.type !== GramTokenType.Reference) {
+      return undefined;
+    }
+
+    const ruleName = stripRulePrefix(token.text);
+    const matches = await this.workspaceIndex.getRulePreviews(ruleName, [document]);
+    return createRulePreviewHover(`Rule preview: ${ruleName}`, matches);
   }
 }
 

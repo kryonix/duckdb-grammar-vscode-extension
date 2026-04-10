@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { WorkspaceIndex } from "../gram/workspaceIndex";
+import { createRulePreviewHover } from "./hoverUtils";
 
 const rangeFromOffsets = (
   document: vscode.TextDocument,
@@ -83,5 +84,23 @@ export class TransformerCodeLensProvider implements vscode.CodeLensProvider {
     }
 
     return lenses;
+  }
+}
+
+export class TransformerHoverProvider implements vscode.HoverProvider {
+  public constructor(private readonly workspaceIndex: WorkspaceIndex) {}
+
+  public async provideHover(
+    document: vscode.TextDocument,
+    position: vscode.Position,
+    _token: vscode.CancellationToken,
+  ): Promise<vscode.Hover | undefined> {
+    const method = this.workspaceIndex.findTransformerMethodAtOffset(document, document.offsetAt(position));
+    if (!method) {
+      return undefined;
+    }
+
+    const matches = await this.workspaceIndex.getRulePreviews(method.ruleName, [document]);
+    return createRulePreviewHover(`Grammar rule: ${method.ruleName}`, matches);
   }
 }
