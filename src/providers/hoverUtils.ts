@@ -1,12 +1,12 @@
 import * as vscode from "vscode";
 import { formatRulePreview } from "../gram/preview";
-import { IndexedGramRule } from "../gram/workspaceIndex";
+import { IndexedRuleMatch } from "../gram/workspaceIndex";
 
 const MAX_PREVIEW_MATCHES = 3;
 
 export function createRulePreviewHover(
   title: string,
-  matches: readonly IndexedGramRule[],
+  matches: readonly IndexedRuleMatch[],
 ): vscode.Hover | undefined {
   if (matches.length === 0) {
     return undefined;
