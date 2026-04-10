@@ -1,0 +1,65 @@
+{
+  "name": "duckdb-grammar-support",
+  "displayName": "DuckDB Grammar Support",
+  "description": "IDE support for DuckDB PEG grammar files (.gram) and transformer navigation in VS Code.",
+  "version": "0.1.0",
+  "publisher": "Kryonix",
+  "bugs": {
+    "url": "https://github.com/kryonix/duckdb-grammar-vscode-extension/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kryonix/duckdb-grammar-vscode-extension.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "duckdb",
+    "grammar",
+    "peg",
+    "parser"
+  ],
+  "activationEvents": [
+    "onLanguage:duckdb-gram",
+    "onLanguage:cpp"
+  ],
+  "main": "./dist/extension.js",
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "test": "npm run compile && node --test dist/test/*.js",
+    "vscode:prepublish": "npm run compile"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "duckdb-gram",
+        "aliases": [
+          "DuckDB Grammar",
+          "duckdb-gram"
+        ],
+        "extensions": [
+          ".gram"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "duckdb-gram",
+        "scopeName": "source.duckdb-gram",
+        "path": "./syntaxes/duckdb-gram.tmLanguage.json"
+      }
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "@types/vscode": "^1.100.0",
+    "typescript": "^5.8.3"
+  }
+}
