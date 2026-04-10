@@ -5,6 +5,7 @@ import {
   GramTokenType,
   ParsedGramDocument,
 } from "./types";
+import { getRuleChildSlots, parseRuleExpression } from "./expression";
 import { lexGram } from "./lexer";
 
 export const stripRulePrefix = (ruleName: string): string =>
@@ -40,6 +41,7 @@ export function parseGram(text: string): ParsedGramDocument {
 
     let parameter: string | undefined;
     let separatorToken: GramToken | undefined;
+    let bodyTokenStart = index;
 
     while (index < tokens.length && tokens[index].type !== GramTokenType.RuleName) {
       const current = tokens[index];
@@ -49,6 +51,7 @@ export function parseGram(text: string): ParsedGramDocument {
       if (current.type === GramTokenType.Separator) {
         separatorToken = current;
         index += 1;
+        bodyTokenStart = index;
         break;
       }
       index += 1;
@@ -74,6 +77,8 @@ export function parseGram(text: string): ParsedGramDocument {
       index += 1;
     }
 
+    const expression = parseRuleExpression(tokens.slice(bodyTokenStart, index));
+
     rules.push({
       name: stripRulePrefix(nameToken.text),
       rawName: nameToken.text,
@@ -87,6 +92,8 @@ export function parseGram(text: string): ParsedGramDocument {
       fullStart: nameToken.start,
       fullEnd,
       references,
+      expression,
+      children: getRuleChildSlots(expression),
     });
   }
 

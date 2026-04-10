@@ -1,4 +1,8 @@
 import * as vscode from "vscode";
+import {
+  getExpressionDisplayText,
+  getExpressionParseResultDescription,
+} from "../gram/expression";
 import { stripRulePrefix } from "../gram/parser";
 import { GramTokenType } from "../gram/types";
 import { WorkspaceIndex } from "../gram/workspaceIndex";
@@ -146,6 +150,43 @@ export class GramHoverProvider implements vscode.HoverProvider {
     const ruleName = stripRulePrefix(token.text);
     const matches = await this.workspaceIndex.getRulePreviews(ruleName, [document]);
     return createRulePreviewHover(`Rule preview: ${ruleName}`, matches);
+  }
+}
+
+export class GramInlayHintProvider implements vscode.InlayHintsProvider {
+  public constructor(private readonly workspaceIndex: WorkspaceIndex) {}
+
+  public provideInlayHints(
+    document: vscode.TextDocument,
+    range: vscode.Range,
+  ): vscode.InlayHint[] {
+    const parsed = this.workspaceIndex.getParsedGramDocument(document);
+    const text = document.getText();
+    const rangeStart = document.offsetAt(range.start);
+    const rangeEnd = document.offsetAt(range.end);
+    const hints: vscode.InlayHint[] = [];
+
+    for (const rule of parsed.rules) {
+      for (const child of rule.children) {
+        if (child.end < rangeStart || child.start > rangeEnd) {
+          continue;
+        }
+
+        const hint = new vscode.InlayHint(
+          document.positionAt(child.end),
+          `[${child.index}]`,
+          vscode.InlayHintKind.Parameter,
+        );
+        hint.paddingLeft = true;
+        hint.tooltip = `Child [${child.index}] of ${rule.name}: ${getExpressionDisplayText(
+          text,
+          child.expression,
+        )} (${getExpressionParseResultDescription(child.expression)})`;
+        hints.push(hint);
+      }
+    }
+
+    return hints;
   }
 }
 

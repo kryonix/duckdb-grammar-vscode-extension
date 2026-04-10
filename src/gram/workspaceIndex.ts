@@ -5,10 +5,23 @@ import {
   isKeywordBackedRuleName,
   parseKeywordListEntries,
 } from "./keywords";
+import {
+  getExpressionDisplayText,
+  getExpressionParseResultDescription,
+} from "./expression";
 import { findTokenAtOffset, parseGram } from "./parser";
 import { getRuleSource } from "./preview";
-import { findTransformerMethodAtOffset, parseTransformerMethods } from "./transformer";
-import { GramToken, ParsedGramDocument, TransformerMethod } from "./types";
+import {
+  findTransformerChildAccessAtOffset,
+  findTransformerMethodAtOffset,
+  parseTransformerMethods,
+} from "./transformer";
+import {
+  GramRuleDefinition,
+  GramToken,
+  ParsedGramDocument,
+  TransformerMethod,
+} from "./types";
 
 interface CachedGramDocument {
   readonly text: string;
@@ -26,6 +39,23 @@ export interface IndexedRuleMatch {
   readonly nameStart: number;
   readonly nameEnd: number;
   readonly source: string;
+}
+
+export interface IndexedRuleChildMatch {
+  readonly document: vscode.TextDocument;
+  readonly ruleName: string;
+  readonly childIndex: number;
+  readonly childCount: number;
+  readonly childSource: string;
+  readonly childResultDescription: string;
+  readonly source: string;
+}
+
+export interface TransformerChildAccessMatch {
+  readonly method: TransformerMethod;
+  readonly childIndex: number;
+  readonly start: number;
+  readonly end: number;
 }
 
 const IGNORED_SEGMENTS = new Set([
@@ -131,6 +161,27 @@ export class WorkspaceIndex {
     );
   }
 
+  public findTransformerChildAccessAtOffset(
+    document: vscode.TextDocument,
+    offset: number,
+  ): TransformerChildAccessMatch | undefined {
+    const methods = this.getTransformerMethods(document);
+    const match =
+      findTransformerChildAccessAtOffset(methods, offset) ??
+      (offset > 0 ? findTransformerChildAccessAtOffset(methods, offset - 1) : undefined);
+
+    if (!match) {
+      return undefined;
+    }
+
+    return {
+      method: match.method,
+      childIndex: match.access.childIndex,
+      start: match.access.start,
+      end: match.access.end,
+    };
+  }
+
   public async getAllRuleNames(extraDocuments: readonly vscode.TextDocument[] = []): Promise<readonly string[]> {
     const definitionMap = await this.getGrammarDefinitionMap(extraDocuments);
     const names = new Set(definitionMap.keys());
@@ -161,6 +212,41 @@ export class WorkspaceIndex {
     extraDocuments: readonly vscode.TextDocument[] = [],
   ): Promise<IndexedRuleMatch[]> {
     return this.getRuleMatches(ruleName, extraDocuments);
+  }
+
+  public async getRuleChildMatches(
+    ruleName: string,
+    childIndex: number,
+    extraDocuments: readonly vscode.TextDocument[] = [],
+  ): Promise<IndexedRuleChildMatch[]> {
+    const matches = await this.getParsedRuleMatches(ruleName, extraDocuments);
+
+    return matches.flatMap(({ document, rule, source, text }) => {
+      const child = rule.children[childIndex];
+      if (!child) {
+        return [];
+      }
+
+      return [
+        {
+          document,
+          ruleName: rule.name,
+          childIndex,
+          childCount: rule.children.length,
+          childSource: getExpressionDisplayText(text, child.expression),
+          childResultDescription: getExpressionParseResultDescription(child.expression),
+          source,
+        },
+      ];
+    });
+  }
+
+  public async getRuleChildCount(
+    ruleName: string,
+    extraDocuments: readonly vscode.TextDocument[] = [],
+  ): Promise<number | undefined> {
+    const matches = await this.getParsedRuleMatches(ruleName, extraDocuments);
+    return matches[0]?.rule.children.length;
   }
 
   public async getTransformerLocations(
@@ -281,6 +367,70 @@ export class WorkspaceIndex {
           nameStart: rule.nameStart,
           nameEnd: rule.nameEnd,
           source: getRuleSource(text, rule),
+        });
+      }
+    }
+
+    return matches;
+  }
+
+  private async getParsedRuleMatches(
+    ruleName: string,
+    extraDocuments: readonly vscode.TextDocument[],
+  ): Promise<
+    Array<{
+      document: vscode.TextDocument;
+      rule: GramRuleDefinition;
+      source: string;
+      text: string;
+    }>
+  > {
+    const grammarMatches = await this.collectParsedRuleMatches(
+      await this.loadGrammarDocuments(extraDocuments),
+      ruleName,
+    );
+    if (grammarMatches.length > 0) {
+      return grammarMatches;
+    }
+
+    return this.collectParsedRuleMatches(
+      await this.loadInlineGrammarDocuments(extraDocuments),
+      ruleName,
+    );
+  }
+
+  private async collectParsedRuleMatches(
+    documents: readonly vscode.TextDocument[],
+    ruleName: string,
+  ): Promise<
+    Array<{
+      document: vscode.TextDocument;
+      rule: GramRuleDefinition;
+      source: string;
+      text: string;
+    }>
+  > {
+    const matches: Array<{
+      document: vscode.TextDocument;
+      rule: GramRuleDefinition;
+      source: string;
+      text: string;
+    }> = [];
+
+    for (const document of documents) {
+      const text = document.getText();
+      const parsed = this.getParsedGramDocument(document);
+
+      for (const rule of parsed.rules) {
+        if (rule.name !== ruleName) {
+          continue;
+        }
+
+        matches.push({
+          document,
+          rule,
+          source: getRuleSource(text, rule),
+          text,
         });
       }
     }

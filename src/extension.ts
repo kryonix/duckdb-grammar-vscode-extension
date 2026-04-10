@@ -7,6 +7,7 @@ import {
   GramDocumentSymbolProvider,
   GramFoldingRangeProvider,
   GramHoverProvider,
+  GramInlayHintProvider,
   GramReferenceProvider,
   GramSemanticTokensProvider,
   getSemanticLegend,
@@ -41,6 +42,10 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.languages.registerHoverProvider(
       grammarSelector,
       new GramHoverProvider(workspaceIndex),
+    ),
+    vscode.languages.registerInlayHintsProvider(
+      grammarSelector,
+      new GramInlayHintProvider(workspaceIndex),
     ),
     vscode.languages.registerCompletionItemProvider(
       grammarSelector,

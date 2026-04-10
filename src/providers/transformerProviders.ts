@@ -1,6 +1,10 @@
 import * as vscode from "vscode";
 import { WorkspaceIndex } from "../gram/workspaceIndex";
-import { createRulePreviewHover } from "./hoverUtils";
+import {
+  createRuleChildHover,
+  createRuleChildOutOfRangeHover,
+  createRulePreviewHover,
+} from "./hoverUtils";
 
 const rangeFromOffsets = (
   document: vscode.TextDocument,
@@ -95,9 +99,38 @@ export class TransformerHoverProvider implements vscode.HoverProvider {
     position: vscode.Position,
     _token: vscode.CancellationToken,
   ): Promise<vscode.Hover | undefined> {
-    const method = this.workspaceIndex.findTransformerMethodAtOffset(document, document.offsetAt(position));
+    const offset = document.offsetAt(position);
+    const method = this.workspaceIndex.findTransformerMethodAtOffset(document, offset);
     if (!method) {
-      return undefined;
+      const childAccess = this.workspaceIndex.findTransformerChildAccessAtOffset(document, offset);
+      if (!childAccess) {
+        return undefined;
+      }
+
+      const matches = await this.workspaceIndex.getRuleChildMatches(
+        childAccess.method.ruleName,
+        childAccess.childIndex,
+        [document],
+      );
+      if (matches.length > 0) {
+        return createRuleChildHover(
+          childAccess.method.ruleName,
+          childAccess.childIndex,
+          matches,
+        );
+      }
+
+      const childCount = await this.workspaceIndex.getRuleChildCount(
+        childAccess.method.ruleName,
+        [document],
+      );
+      return childCount === undefined
+        ? undefined
+        : createRuleChildOutOfRangeHover(
+            childAccess.method.ruleName,
+            childAccess.childIndex,
+            childCount,
+          );
     }
 
     const matches = await this.workspaceIndex.getRulePreviews(method.ruleName, [document]);
